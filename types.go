@@ -21,6 +21,7 @@ type StrictParams struct {
 type Gocal struct {
 	scanner    *bufio.Scanner
 	Events     []Event
+        Todos      []Todo
 	SkipBounds bool
 	Strict     StrictParams
 	buffer     *Event
@@ -92,6 +93,38 @@ type RawDate struct {
 }
 
 type Event struct {
+	delayed []*Line
+
+	Uid              string
+	Summary          string
+	Description      string
+	Categories       []string
+	Start            *time.Time
+	RawStart         RawDate
+	End              *time.Time
+	RawEnd           RawDate
+	Duration         *time.Duration
+	Stamp            *time.Time
+	Created          *time.Time
+	LastModified     *time.Time
+	Location         string
+	Geo              *Geo
+	URL              string
+	Status           string
+	Organizer        *Organizer
+	Attendees        []Attendee
+	Attachments      []Attachment
+	IsRecurring      bool
+	RecurrenceID     string
+	RecurrenceRule   map[string]string
+	ExcludeDates     []time.Time
+	Sequence         int
+	CustomAttributes map[string]string
+	Valid            bool
+	Comment          string
+}
+
+type Todo struct {
 	delayed []*Line
 
 	Uid              string

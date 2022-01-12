@@ -75,6 +75,8 @@ By default, any error in parsing an event will result in the whole feed being ab
 
 I do not pretend this abides by [RFC 5545](https://tools.ietf.org/html/rfc5545), this only covers parts I needed to be parsed for my own personal use. Among other, most property parameters are not handled by the library, and, for now, only the following properties are parsed:
 
+### VEVENT attributes
+
  * `UID`
  * `SUMMARY` / `DESCRIPTION`
  * `DTSTART` / `DTEND` / `DURATION` (day-long, local, UTC and `TZID`d)
@@ -89,4 +91,10 @@ I do not pretend this abides by [RFC 5545](https://tools.ietf.org/html/rfc5545),
  * `RRULE`
  * `X-*`
 
-Also, we ignore whatever's not a `VEVENT`.
+### VTODO attributes
+
+TODO : fill this out
+
+### Other types
+
+Also, we ignore whatever's not a `VEVENT` or `VTODO`

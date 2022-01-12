@@ -49,12 +49,22 @@ func (gc *Gocal) Parse() error {
 			continue
 		}
 
+		// Starting of an event
 		if ctx.Value == ContextRoot && l.Is("BEGIN", "VEVENT") {
+			ctx = ctx.Nest(ContextEvent)
+
+			gc.buffer = &Event{Valid: true, delayed: make([]*Line, 0)}
+
+		// Starting of a todo
+		} else if ctx.Value == ContextRoot && l.Is("BEGIN", "VTODO") {
+			// TODO : IMPLEMENT THIS
 			ctx = ctx.Nest(ContextEvent)
 
 			gc.buffer = &Event{Valid: true, delayed: make([]*Line, 0)}
 		} else if ctx.Value == ContextRoot && l.IsKey("METHOD") {
 			gc.Method = l.Value
+
+		// Ending of an event
 		} else if ctx.Value == ContextEvent && l.Is("END", "VEVENT") {
 			if ctx.Previous == nil {
 				return fmt.Errorf("got an END:* without matching BEGIN:*")
@@ -107,6 +117,62 @@ func (gc *Gocal) Parse() error {
 
 				gc.Events = append(gc.Events, *gc.buffer)
 			}
+
+		// Ending of a todo
+		} else if ctx.Value == ContextEvent && l.Is("END", "VTODO") {
+			// TODO : IMPLEMENT THIS
+			if ctx.Previous == nil {
+				return fmt.Errorf("got an END:* without matching BEGIN:*")
+			}
+			ctx = ctx.Previous
+
+			for _, d := range gc.buffer.delayed {
+				gc.parseEvent(d)
+			}
+
+			// Some tools return single full day events as inclusive (same DTSTART
+			// and DTEND) which goes against RFC. Standard tools still handle those
+			// as events spanning 24 hours.
+			if gc.buffer.RawStart.Value == gc.buffer.RawEnd.Value {
+				if value, ok := gc.buffer.RawEnd.Params["VALUE"]; ok && value == "DATE" {
+					gc.buffer.End, err = parser.ParseTime(gc.buffer.RawEnd.Value, gc.buffer.RawEnd.Params, parser.TimeEnd, true)
+				}
+			}
+
+			// If an event has a VALUE=DATE start date and no end date, event lasts a day
+			if gc.buffer.End == nil && gc.buffer.RawStart.Params["VALUE"] == "DATE" {
+				d := (*gc.buffer.Start).Add(24 * time.Hour)
+
+				gc.buffer.End = &d
+			}
+
+			err := gc.checkEvent()
+			if err != nil {
+				switch gc.Strict.Mode {
+				case StrictModeFailFeed:
+					return fmt.Errorf(fmt.Sprintf("gocal error: %s", err))
+				case StrictModeFailEvent:
+					continue
+				}
+			}
+
+			if gc.buffer.Start == nil || gc.buffer.End == nil {
+				continue
+			}
+
+			if gc.buffer.IsRecurring {
+				rInstances = append(rInstances, gc.ExpandRecurringEvent(gc.buffer)...)
+			} else {
+				if gc.buffer.End == nil || gc.buffer.Start == nil {
+					continue
+				}
+				if !gc.SkipBounds && !gc.IsInRange(*gc.buffer) {
+					continue
+				}
+
+				gc.Events = append(gc.Events, *gc.buffer)
+			}
+
 		} else if l.IsKey("BEGIN") {
 			ctx = ctx.Nest(ContextUnknown)
 		} else if l.IsKey("END") {
@@ -161,6 +227,10 @@ func (gc *Gocal) parseLine() (*Line, error, bool) {
 	attr, params := parser.ParseParameters(tokens[0])
 
 	return &Line{Key: attr, Params: params, Value: parser.UnescapeString(strings.TrimPrefix(tokens[1], " "))}, nil, done
+}
+
+// TODO : build this out based on parseEvent
+func (gc *Gocal) parseTodo(l *Line) error {
 }
 
 func (gc *Gocal) parseEvent(l *Line) error {
